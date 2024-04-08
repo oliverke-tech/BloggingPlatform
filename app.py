@@ -5,6 +5,10 @@ app = Flask(__name__)
 users = {}
 posts = {}
 
+@app.route("/")
+def main():
+    return "Welcome!"
+
 @app.route('/users', methods=['POST'])
 def create_user():
     data = request.get_json()
@@ -46,6 +50,14 @@ def create_post():
     posts[post_id] = post
 
     return jsonify({'message': 'Post created successfully!', 'post': post}), 201
+
+@app.route('/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
+    if post_id not in posts:
+        return jsonify({'message': 'Post not found!'}), 404
+
+    del posts[post_id]
+    return jsonify({'message': 'Post deleted successfully!'})
 
 if __name__ == '__main__':
     app.run(debug=True)
