@@ -59,5 +59,21 @@ def delete_post(post_id):
     del posts[post_id]
     return jsonify({'message': 'Post deleted successfully!'})
 
+@app.route('/posts/<int:post_id>', methods=['PUT'])
+def update_post(post_id):
+    data = request.get_json()
+    title = data.get('title')
+    content = data.get('content')
+
+    if post_id not in posts:
+        return jsonify({'message': 'Post not found!'}), 404
+
+    post = posts[post_id]
+    post['title'] = title if title else post['title']
+    post['content'] = content if content else post['content']
+
+    return jsonify({'message': 'Post updated successfully!', 'post': post})
+
+
 if __name__ == '__main__':
     app.run(debug=True)
