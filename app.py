@@ -28,6 +28,14 @@ def create_user():
 def get_posts():
     return jsonify(list(posts.values()))
 
+@app.route('/posts/<int:post_id>', methods=['GET'])
+def get_post(post_id):
+    post = posts.get(post_id)
+    if post:
+        return jsonify(post)
+    else:
+        return jsonify({'message': 'Post not found!'}), 404
+
 @app.route('/posts', methods=['POST'])
 def create_post():
     data = request.get_json()
