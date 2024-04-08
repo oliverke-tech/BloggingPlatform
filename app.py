@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import base64
 
 app = Flask(__name__)
 
@@ -7,10 +8,17 @@ posts = {}
 
 @app.route("/")
 def main():
-    return "Welcome!"
+    return "Hello World!"
 
-@app.route('/users', methods=['POST'])
-def create_user():
+def generate_auth_token(username, password):
+    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+    return token
+
+def check_auth(username, password):
+    return username in users and users[username]['password'] == password
+
+@app.route('/signup', methods=['POST'])
+def signup():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
@@ -22,7 +30,17 @@ def create_user():
         return jsonify({'message': 'Username already exists!'}), 400
 
     users[username] = {'password': password}
-    return jsonify({'message': 'User created successfully!', 'username': username}), 201
+    token = generate_auth_token(username, password)
+    return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 201
+
+@app.route('/signin', methods=['POST'])
+def signin():
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return jsonify({'message': 'Invalid username or password!'}), 401
+
+    token = generate_auth_token(auth.username, auth.password)
+    return jsonify({'message': 'Login successful!', 'username': auth.username, 'token': token})
 
 @app.route('/posts', methods=['GET'])
 def get_posts():
