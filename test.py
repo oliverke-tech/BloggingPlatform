@@ -12,7 +12,6 @@ app.config['SECRET_KEY'] = 'your_secret_key'
 def check_auth(username, password):
     return username in users and users[username]['password'] == password
 
-# Function to generate a JWT token
 def generate_token(username):
     payload = {
         'username': username,
@@ -21,7 +20,6 @@ def generate_token(username):
     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
     return token
 
-# Decorator function to require token authentication for certain endpoints
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -101,7 +99,7 @@ def get_post(post_id):
 
 @app.route('/posts/<int:post_id>', methods=['PUT'])
 @token_required
-def update_post(post_id):
+def update_post(current_user, post_id):
     data = request.get_json()
     title = data.get('title')
     content = data.get('content')
@@ -110,7 +108,7 @@ def update_post(post_id):
         return jsonify({'message': 'Post not found!'}), 404
 
     post = posts[post_id]
-    if post['author'] != request.authorization.username:
+    if post['author'] != current_user:
         return jsonify({'message': 'You are not authorized to update this post!'}), 403
 
     post['title'] = title if title else post['title']
@@ -120,12 +118,12 @@ def update_post(post_id):
 
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
 @token_required
-def delete_post(post_id):
+def delete_post(current_user, post_id):
     if post_id not in posts:
         return jsonify({'message': 'Post not found!'}), 404
 
     post = posts[post_id]
-    if post['author'] != request.authorization.username:
+    if post['author'] != current_user:
         return jsonify({'message': 'You are not authorized to delete this post!'}), 403
 
     del posts[post_id]
