@@ -1,30 +1,49 @@
 from flask import Flask, request, jsonify, make_response
+import jwt
+import datetime
 from functools import wraps
-import base64
 
 app = Flask(__name__)
 
-# A simple in-memory database to store users and blog posts
 users = {}
 posts = {}
+app.config['SECRET_KEY'] = 'your_secret_key'
 
-# Function to generate basic authentication token
-def generate_auth_token(username, password):
-    token = base64.b64encode(f"{username}:{password}".encode()).decode()
-    return token
-
-# Function to check if the provided username and password match
 def check_auth(username, password):
     return username in users and users[username]['password'] == password
 
-# Decorator function to require authentication for certain endpoints
-def requires_auth(f):
+# Function to generate a JWT token
+def generate_token(username):
+    payload = {
+        'username': username,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+    }
+    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    return token
+
+# Decorator function to require token authentication for certain endpoints
+def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or not check_auth(auth.username, auth.password):
-            return jsonify({'message': 'Unauthorized access!'}), 401
-        return f(*args, **kwargs)
+        token = request.headers.get('Authorization')
+        token_parts = token.split()
+
+        if len(token_parts) != 2 or token_parts[0].lower() != 'bearer':
+            return 'Invalid token. Please provide a valid Bearer token.', None
+
+        token = token_parts[1]
+
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user = data['username']
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 401
+
+        return f(current_user, *args, **kwargs)
+
     return decorated
 
 @app.route('/signup', methods=['POST'])
@@ -40,7 +59,7 @@ def signup():
         return jsonify({'message': 'Username already exists!'}), 400
 
     users[username] = {'password': password}
-    token = generate_auth_token(username, password)
+    token = generate_token(username)
     return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 201
 
 @app.route('/signin', methods=['POST'])
@@ -49,7 +68,7 @@ def signin():
     if not auth or not check_auth(auth.username, auth.password):
         return jsonify({'message': 'Invalid username or password!'}), 401
 
-    token = generate_auth_token(auth.username, auth.password)
+    token = generate_token(auth.username)
     return jsonify({'message': 'Login successful!', 'username': auth.username, 'token': token})
 
 @app.route('/posts', methods=['GET'])
@@ -57,8 +76,8 @@ def get_posts():
     return jsonify(list(posts.values()))
 
 @app.route('/posts', methods=['POST'])
-@requires_auth
-def create_post():
+@token_required
+def create_post(current_user):
     data = request.get_json()
     title = data.get('title')
     content = data.get('content')
@@ -67,7 +86,7 @@ def create_post():
         return jsonify({'message': 'Title and content are required!'}), 400
 
     post_id = len(posts) + 1
-    post = {'id': post_id, 'title': title, 'content': content, 'author': request.authorization.username}
+    post = {'id': post_id, 'title': title, 'content': content, 'author': current_user}
     posts[post_id] = post
 
     return jsonify({'message': 'Post created successfully!', 'post': post}), 201
@@ -81,7 +100,7 @@ def get_post(post_id):
         return jsonify({'message': 'Post not found!'}), 404
 
 @app.route('/posts/<int:post_id>', methods=['PUT'])
-@requires_auth
+@token_required
 def update_post(post_id):
     data = request.get_json()
     title = data.get('title')
@@ -100,7 +119,7 @@ def update_post(post_id):
     return jsonify({'message': 'Post updated successfully!', 'post': post})
 
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
-@requires_auth
+@token_required
 def delete_post(post_id):
     if post_id not in posts:
         return jsonify({'message': 'Post not found!'}), 404
