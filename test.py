@@ -2,12 +2,36 @@ from flask import Flask, request, jsonify, make_response
 import jwt
 import datetime
 from functools import wraps
+import pymysql
 
 app = Flask(__name__)
 
 users = {}
 posts = {}
 app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'ke981015'
+app.config['MYSQL_DB'] = 'blog_platform'
+
+mysql = pymysql.connect(host=app.config['MYSQL_HOST'],
+                        user=app.config['MYSQL_USER'],
+                        passwd=app.config['MYSQL_PASSWORD'],
+                        db=app.config['MYSQL_DB'])
+
+cursor = mysql.cursor()
+
+# create_users_table_sql = """
+# CREATE TABLE IF NOT EXISTS users (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     username VARCHAR(255) UNIQUE NOT NULL,
+#     password VARCHAR(255) NOT NULL
+# )
+# """
+
+# cursor.execute(create_users_table_sql)
+
+# mysql.commit()
 
 def check_auth(username, password):
     return username in users and users[username]['password'] == password
@@ -53,10 +77,18 @@ def signup():
     if not username or not password:
         return jsonify({'message': 'Username and password are required!'}), 400
 
-    if username in users:
+    # if username in users:
+    #     return jsonify({'message': 'Username already exists!'}), 400
+
+    # users[username] = {'password': password}
+    cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+    existing_user = cursor.fetchone()
+    if existing_user:
         return jsonify({'message': 'Username already exists!'}), 400
 
-    users[username] = {'password': password}
+    cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+    mysql.commit()
+
     token = generate_token(username)
     return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 201
 
