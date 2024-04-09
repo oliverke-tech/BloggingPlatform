@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
 import base64
-
-app = Flask(__name__)
+from app import model, db, app
 
 users = {}
 posts = {}
+
+
+db.create_all()
 
 @app.route("/")
 def main():
@@ -31,6 +33,9 @@ def signup():
 
     users[username] = {'password': password}
     token = generate_auth_token(username, password)
+    candidate_user = model.User(username=username, user_id = username, password=password)
+    db.session.add(candidate_user)
+    db.session.commit()
     return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 201
 
 @app.route('/signin', methods=['POST'])
