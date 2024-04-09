@@ -34,7 +34,9 @@ cursor = mysql.cursor()
 # mysql.commit()
 
 def check_auth(username, password):
-    return username in users and users[username]['password'] == password
+    cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
+    user = cursor.fetchone()
+    return user is not None
 
 def generate_token(username):
     payload = {
@@ -101,10 +103,6 @@ def signin():
     token = generate_token(auth.username)
     return jsonify({'message': 'Login successful!', 'username': auth.username, 'token': token})
 
-@app.route('/posts', methods=['GET'])
-def get_posts():
-    return jsonify(list(posts.values()))
-
 @app.route('/posts', methods=['POST'])
 @token_required
 def create_post(current_user):
@@ -115,15 +113,24 @@ def create_post(current_user):
     if not title or not content:
         return jsonify({'message': 'Title and content are required!'}), 400
 
-    post_id = len(posts) + 1
-    post = {'id': post_id, 'title': title, 'content': content, 'author': current_user}
-    posts[post_id] = post
+    # post_id = len(posts) + 1
+    # post = {'id': post_id, 'title': title, 'content': content, 'author': current_user}
+    # posts[post_id] = post
+    cursor.execute("INSERT INTO posts (title, content, author) VALUES (%s, %s, %s)", (title, content, current_user))
+    mysql.commit()
 
-    return jsonify({'message': 'Post created successfully!', 'post': post}), 201
+    return jsonify({'message': 'Post created successfully!'}), 201
+
+@app.route('/posts', methods=['GET'])
+def get_posts():
+    cursor.execute("SELECT * FROM posts")
+    posts = cursor.fetchall()
+    return jsonify(posts)
 
 @app.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
-    post = posts.get(post_id)
+    cursor.execute("SELECT * FROM posts WHERE id=%s", (post_id,))
+    post = cursor.fetchone()
     if post:
         return jsonify(post)
     else:
@@ -136,29 +143,33 @@ def update_post(current_user, post_id):
     title = data.get('title')
     content = data.get('content')
 
-    if post_id not in posts:
+    cursor.execute("SELECT * FROM posts WHERE id=%s", (post_id,))
+    post = cursor.fetchone()
+    if not post:
         return jsonify({'message': 'Post not found!'}), 404
 
-    post = posts[post_id]
-    if post['author'] != current_user:
+    if post[3] != current_user:
         return jsonify({'message': 'You are not authorized to update this post!'}), 403
 
-    post['title'] = title if title else post['title']
-    post['content'] = content if content else post['content']
+    cursor.execute("UPDATE posts SET title=%s, content=%s WHERE id=%s", (title, content, post_id))
+    mysql.commit()
 
-    return jsonify({'message': 'Post updated successfully!', 'post': post})
+    return jsonify({'message': 'Post updated successfully!'})
 
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
 @token_required
 def delete_post(current_user, post_id):
-    if post_id not in posts:
+    cursor.execute("SELECT * FROM posts WHERE id=%s", (post_id,))
+    post = cursor.fetchone()
+    if not post:
         return jsonify({'message': 'Post not found!'}), 404
 
-    post = posts[post_id]
-    if post['author'] != current_user:
+    if post[3] != current_user:
         return jsonify({'message': 'You are not authorized to delete this post!'}), 403
 
-    del posts[post_id]
+    cursor.execute("DELETE FROM posts WHERE id=%s", (post_id,))
+    mysql.commit()
+
     return jsonify({'message': 'Post deleted successfully!'})
 
 if __name__ == '__main__':
