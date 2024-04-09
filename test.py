@@ -21,18 +21,6 @@ mysql = pymysql.connect(host=app.config['MYSQL_HOST'],
 
 cursor = mysql.cursor()
 
-# create_users_table_sql = """
-# CREATE TABLE IF NOT EXISTS users (
-#     id INT AUTO_INCREMENT PRIMARY KEY,
-#     username VARCHAR(255) UNIQUE NOT NULL,
-#     password VARCHAR(255) NOT NULL
-# )
-# """
-
-# cursor.execute(create_users_table_sql)
-
-# mysql.commit()
-
 def check_auth(username, password):
     cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
     user = cursor.fetchone()
@@ -79,10 +67,6 @@ def signup():
     if not username or not password:
         return jsonify({'message': 'Username and password are required!'}), 400
 
-    # if username in users:
-    #     return jsonify({'message': 'Username already exists!'}), 400
-
-    # users[username] = {'password': password}
     cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
     existing_user = cursor.fetchone()
     if existing_user:
@@ -113,9 +97,6 @@ def create_post(current_user):
     if not title or not content:
         return jsonify({'message': 'Title and content are required!'}), 400
 
-    # post_id = len(posts) + 1
-    # post = {'id': post_id, 'title': title, 'content': content, 'author': current_user}
-    # posts[post_id] = post
     cursor.execute("INSERT INTO posts (title, content, author) VALUES (%s, %s, %s)", (title, content, current_user))
     mysql.commit()
 
