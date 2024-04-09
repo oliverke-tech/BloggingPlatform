@@ -1,31 +1,38 @@
-from flask import Flask, request, jsonify, make_response
+# Import necessary modules
+from flask import Flask, request, jsonify
 import jwt
 import datetime
 from functools import wraps
 import pymysql
 
+# Initialize Flask app
 app = Flask(__name__)
 
-users = {}
-posts = {}
+
+# Configuration settings
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = 'ke981015'
 app.config['MYSQL_DB'] = 'blog_platform'
 
+# Connect to MySQL database
 mysql = pymysql.connect(host=app.config['MYSQL_HOST'],
                         user=app.config['MYSQL_USER'],
                         passwd=app.config['MYSQL_PASSWORD'],
                         db=app.config['MYSQL_DB'])
 
+# Create a cursor object to execute queries
 cursor = mysql.cursor()
 
+
+# Function to check user authentication
 def check_auth(username, password):
     cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
     user = cursor.fetchone()
     return user is not None
 
+# Function to generate JWT token
 def generate_token(username):
     payload = {
         'username': username,
@@ -34,6 +41,7 @@ def generate_token(username):
     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
     return token
 
+# Decorator function to enforce token requirement for certain routes
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -58,6 +66,7 @@ def token_required(f):
 
     return decorated
 
+# Route for user signup
 @app.route('/signup', methods=['POST'])
 def signup():
     data = request.get_json()
@@ -78,6 +87,7 @@ def signup():
     token = generate_token(username)
     return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 200
 
+# Route for user signin
 @app.route('/signin', methods=['POST'])
 def signin():
     auth = request.authorization
@@ -87,6 +97,7 @@ def signin():
     token = generate_token(auth.username)
     return jsonify({'message': 'Login successful!', 'username': auth.username, 'token': token})
 
+# Route for creating a new post
 @app.route('/posts', methods=['POST'])
 @token_required
 def create_post(current_user):
@@ -102,12 +113,14 @@ def create_post(current_user):
 
     return jsonify({'message': 'Post created successfully!'}), 200
 
+# Route for retrieving all posts
 @app.route('/posts', methods=['GET'])
 def get_posts():
     cursor.execute("SELECT * FROM posts")
     posts = cursor.fetchall()
     return jsonify(posts)
 
+# Route for retrieving a specific post by ID
 @app.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
     cursor.execute("SELECT * FROM posts WHERE id=%s", (post_id,))
@@ -117,6 +130,7 @@ def get_post(post_id):
     else:
         return jsonify({'message': 'Post not found!'}), 400
 
+# Route for updating a post
 @app.route('/posts/<int:post_id>', methods=['PUT'])
 @token_required
 def update_post(current_user, post_id):
@@ -137,6 +151,7 @@ def update_post(current_user, post_id):
 
     return jsonify({'message': 'Post updated successfully!'})
 
+# Route for deleting a post
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
 @token_required
 def delete_post(current_user, post_id):
@@ -153,5 +168,6 @@ def delete_post(current_user, post_id):
 
     return jsonify({'message': 'Post deleted successfully!'})
 
+# Run the Flask app
 if __name__ == '__main__':
     app.run(debug=True)
