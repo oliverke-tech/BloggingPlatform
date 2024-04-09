@@ -58,13 +58,13 @@ def token_required(f):
         token = token_parts[1]
 
         if not token:
-            return jsonify({'message': 'Token is missing!'}), 401
+            return jsonify({'message': 'Token is missing!'}), 400
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             current_user = data['username']
         except:
-            return jsonify({'message': 'Token is invalid!'}), 401
+            return jsonify({'message': 'Token is invalid!'}), 400
 
         return f(current_user, *args, **kwargs)
 
@@ -92,13 +92,13 @@ def signup():
     mysql.commit()
 
     token = generate_token(username)
-    return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 201
+    return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 200
 
 @app.route('/signin', methods=['POST'])
 def signin():
     auth = request.authorization
     if not auth or not check_auth(auth.username, auth.password):
-        return jsonify({'message': 'Invalid username or password!'}), 401
+        return jsonify({'message': 'Invalid username or password!'}), 400
 
     token = generate_token(auth.username)
     return jsonify({'message': 'Login successful!', 'username': auth.username, 'token': token})
@@ -119,7 +119,7 @@ def create_post(current_user):
     cursor.execute("INSERT INTO posts (title, content, author) VALUES (%s, %s, %s)", (title, content, current_user))
     mysql.commit()
 
-    return jsonify({'message': 'Post created successfully!'}), 201
+    return jsonify({'message': 'Post created successfully!'}), 200
 
 @app.route('/posts', methods=['GET'])
 def get_posts():
@@ -134,7 +134,7 @@ def get_post(post_id):
     if post:
         return jsonify(post)
     else:
-        return jsonify({'message': 'Post not found!'}), 404
+        return jsonify({'message': 'Post not found!'}), 400
 
 @app.route('/posts/<int:post_id>', methods=['PUT'])
 @token_required
@@ -146,10 +146,10 @@ def update_post(current_user, post_id):
     cursor.execute("SELECT * FROM posts WHERE id=%s", (post_id,))
     post = cursor.fetchone()
     if not post:
-        return jsonify({'message': 'Post not found!'}), 404
+        return jsonify({'message': 'Post not found!'}), 400
 
     if post[3] != current_user:
-        return jsonify({'message': 'You are not authorized to update this post!'}), 403
+        return jsonify({'message': 'You are not authorized to update this post!'}), 400
 
     cursor.execute("UPDATE posts SET title=%s, content=%s WHERE id=%s", (title, content, post_id))
     mysql.commit()
@@ -162,10 +162,10 @@ def delete_post(current_user, post_id):
     cursor.execute("SELECT * FROM posts WHERE id=%s", (post_id,))
     post = cursor.fetchone()
     if not post:
-        return jsonify({'message': 'Post not found!'}), 404
+        return jsonify({'message': 'Post not found!'}), 400
 
     if post[3] != current_user:
-        return jsonify({'message': 'You are not authorized to delete this post!'}), 403
+        return jsonify({'message': 'You are not authorized to delete this post!'}), 400
 
     cursor.execute("DELETE FROM posts WHERE id=%s", (post_id,))
     mysql.commit()
