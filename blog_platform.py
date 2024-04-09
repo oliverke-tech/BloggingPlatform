@@ -8,7 +8,6 @@ import pymysql
 # Initialize Flask app
 app = Flask(__name__)
 
-
 # Configuration settings
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['MYSQL_HOST'] = 'localhost'
