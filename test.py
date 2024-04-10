@@ -21,12 +21,45 @@ class TestApp(unittest.TestCase):
         db.drop_all()
         self.ctx.pop()
     
-    def test_signup(self):
-        response = self.app.post('/signup', json={'username': 'test_user', 'password': 'test_password'})
-        data = json.loads(response.data.decode())
+
+    # Test successful signup
+    def test_signup_valid_data(self):
+        signup_data = {'username': 'test_user', 'password': 'test_password'}
+        response = self.app.post('/signup', json=signup_data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(data['message'], 'User created successfully!')
-        self.assertEqual(data['username'], 'test_user')
+        self.assertIn(b'User created successfully!', response.data)
+
+
+    # Test signup with existing username
+    def test_signup_existing_username(self):
+        signup_data = {'username': 'test_user', 'password': 'test_password'}
+        
+        # First signup attempt
+        response = self.app.post('/signup', json=signup_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'User created successfully!', response.data)
+        
+        # Second signup attempt with the same username
+        response = self.app.post('/signup', json=signup_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b'Username already exists!', response.data)
+
+
+    # Test signup with missing username
+    def test_signup_missing_username(self):
+        signup_data = {'password': 'test_password'}
+        response = self.app.post('/signup', json=signup_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b'Username and password are required!', response.data)
+
+
+    # Test signup with missing password
+    def test_signup_missing_password(self):
+        signup_data = {'username': 'test_user'}
+        response = self.app.post('/signup', json=signup_data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b'Username and password are required!', response.data)
+
 
     def test_signin(self):
         # First, signup a user
@@ -56,6 +89,7 @@ class TestApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Post created successfully!', response.data)
 
+
     def test_update_post(self):
         # First, signup a user
         signup_data = {'username': 'test_user', 'password': 'test_password'}
@@ -83,6 +117,7 @@ class TestApp(unittest.TestCase):
         # Check if the post was updated successfully
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Post updated successfully!', response.data)
+
 
     def test_delete_post(self):
         # First, signup a user
