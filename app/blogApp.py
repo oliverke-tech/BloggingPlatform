@@ -5,11 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import datetime
 import jwt
-import json
-
-users = {}
-posts = {}
-app.config['SECRET_KEY'] = 'your_secret_key'
 
 with app.app_context():
     db.create_all()
@@ -49,6 +44,7 @@ def token_required(f):
     return decorated
 
 
+# Route for user signup
 # Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234", "password":"5678"}' -H 'Content-Type: application/json'
 @app.route('/signup', methods=['POST'])
 def signup():
@@ -78,6 +74,7 @@ def signup():
     return jsonify({'message': 'User created successfully!', 'username': username}), 200
 
 
+# Route for user signin
 @app.route('/signin', methods=['POST'])
 def signin():
     data = request.get_json()
@@ -102,6 +99,7 @@ def signin():
         return jsonify({'message': 'Invalid username or password!'}), 400
 
 
+# Route for creating a new post
 @app.route('/posts', methods=['POST'])
 @token_required
 def create_post(current_user):
@@ -119,9 +117,10 @@ def create_post(current_user):
     db.session.add(new_post)
     db.session.commit()
 
-    return jsonify({'message': 'Post created successfully!'}), 201
+    return jsonify({'message': 'Post created successfully!'}), 200
 
 
+# Route for retrieving all posts
 @app.route('/posts', methods=['GET'])
 def get_posts():
     # Query all posts from the database
@@ -133,6 +132,7 @@ def get_posts():
     return jsonify(posts_data), 200
 
 
+# Route for retrieving a specific post by ID
 @app.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
     # Query the post from the database
@@ -151,6 +151,7 @@ def get_post(post_id):
         return jsonify({'message': 'Post not found!'}), 400
 
 
+# Route for updating a post
 @app.route('/posts/<int:post_id>', methods=['PUT'])
 @token_required
 def update_post(current_user, post_id):
@@ -179,6 +180,7 @@ def update_post(current_user, post_id):
     return jsonify({'message': 'Post updated successfully!'}), 200
 
 
+# Route for deleting a post
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
 @token_required
 def delete_post(current_user, post_id):
