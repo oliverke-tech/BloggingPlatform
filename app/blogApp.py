@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import base64
 from app import model, db, app
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
 users = {}
@@ -9,51 +10,68 @@ posts = {}
 with app.app_context():
     db.create_all()
 
-@app.route("/")
-def main():
-    return "Hello World!"
-
 def generate_auth_token(username, password):
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
     return token
 
-def check_auth(username, password):
-    return username in users and users[username]['password'] == password
 
-# Test Curl: curl localhost:5050/signup -X POST -d '{\"username\":\"1234\", \"password\":\"5678\"}' -H 'Content-Type: application/json'
-@app.route('/signup', methods=['POST','GET'])
+# Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234", "password":"5678"}' -H 'Content-Type: application/json'
+@app.route('/signup', methods=['POST'])
 def signup():
-    print(request.data)
     data = request.get_json()
-    print(data)
+    if not data:
+        return jsonify({'message': 'Request body is missing or not in JSON format'}), 400
+
     username = data.get('username')
     password = data.get('password')
 
     if not username or not password:
         return jsonify({'message': 'Username and password are required!'}), 400
 
-    if username in users:
+    # Check if the username already exists in the database
+    existing_user = model.User.query.filter_by(username=username).first()
+    if existing_user:
         return jsonify({'message': 'Username already exists!'}), 400
 
-    users[username] = {'password': password}
-    token = generate_auth_token(username, password)
-    candidate_user = model.User(username=username, user_id = username, password=password)
-    db.session.add(candidate_user)
+    # Hash the password before storing it in the database
+    hashed_password = generate_password_hash(password)
+
+    # Create a new user instance and add it to the database
+    new_user = model.User(username=username, password=hashed_password)
+    db.session.add(new_user)
     db.session.commit()
-    return jsonify({'message': 'User created successfully!', 'username': username, 'token': token}), 201
+
+    return jsonify({'message': 'User created successfully!', 'username': username}), 200
+
 
 @app.route('/signin', methods=['POST'])
 def signin():
-    auth = request.authorization
-    if not auth or not check_auth(auth.username, auth.password):
-        return jsonify({'message': 'Invalid username or password!'}), 401
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'Request body is missing or not in JSON format'}), 400
 
-    token = generate_auth_token(auth.username, auth.password)
-    return jsonify({'message': 'Login successful!', 'username': auth.username, 'token': token})
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'message': 'Username and password are required!'}), 400
+
+    # Retrieve the user from the database
+    user = model.User.query.filter_by(username=username).first()
+
+    # Check if the user exists and verify the password
+    if user and check_password_hash(user.password, password):
+        # Generate token for authentication
+        token = generate_auth_token(username, password)
+        return jsonify({'message': 'Login successful!', 'username': username, 'token': token}), 200
+    else:
+        return jsonify({'message': 'Invalid username or password!'}), 400
+    
 
 @app.route('/posts', methods=['GET'])
 def get_posts():
     return jsonify(list(posts.values()))
+
 
 @app.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
@@ -62,6 +80,7 @@ def get_post(post_id):
         return jsonify(post)
     else:
         return jsonify({'message': 'Post not found!'}), 404
+
 
 @app.route('/posts', methods=['POST'])
 def create_post():
@@ -86,6 +105,7 @@ def create_post():
 
     return jsonify({'message': 'Post created successfully!', 'post': post}), 201
 
+
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
     if post_id not in posts:
@@ -93,6 +113,7 @@ def delete_post(post_id):
 
     del posts[post_id]
     return jsonify({'message': 'Post deleted successfully!'})
+
 
 @app.route('/posts/<int:post_id>', methods=['PUT'])
 def update_post(post_id):
