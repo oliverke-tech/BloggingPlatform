@@ -2,17 +2,51 @@ from flask import Flask, request, jsonify
 import base64
 from app import model, db, app
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+import datetime
+import jwt
 import json
 
 users = {}
 posts = {}
+app.config['SECRET_KEY'] = 'your_secret_key'
 
 with app.app_context():
     db.create_all()
 
-def generate_auth_token(username, password):
-    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+# Function to generate JWT token
+def generate_token(username):
+    payload = {
+        'username': username,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+    }
+    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
     return token
+
+# Decorator function to enforce token requirement for certain routes
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        token_parts = token.split()
+
+        if len(token_parts) != 2 or token_parts[0].lower() != 'bearer':
+            return 'Invalid token. Please provide a valid Bearer token.', None
+
+        token = token_parts[1]
+
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 400
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user = data['username']
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 400
+
+        return f(current_user, *args, **kwargs)
+
+    return decorated
 
 
 # Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234", "password":"5678"}' -H 'Content-Type: application/json'
@@ -62,15 +96,41 @@ def signin():
     # Check if the user exists and verify the password
     if user and check_password_hash(user.password, password):
         # Generate token for authentication
-        token = generate_auth_token(username, password)
+        token = generate_token(username)
         return jsonify({'message': 'Login successful!', 'username': username, 'token': token}), 200
     else:
         return jsonify({'message': 'Invalid username or password!'}), 400
-    
+
+
+@app.route('/posts', methods=['POST'])
+@token_required
+def create_post(current_user):
+    data = request.get_json()
+    title = data.get('title')
+    content = data.get('content')
+
+    if not title or not content:
+        return jsonify({'message': 'Title and content are required!'}), 400
+
+    # Create a new post instance
+    new_post = model.Post(title=title, content=content, author=current_user)
+
+    # Add the post to the database session
+    db.session.add(new_post)
+    db.session.commit()
+
+    return jsonify({'message': 'Post created successfully!'}), 201
+
 
 @app.route('/posts', methods=['GET'])
 def get_posts():
-    return jsonify(list(posts.values()))
+    # Query all posts from the database
+    posts = model.Post.query.all()
+
+    # Convert SQLAlchemy objects to dictionary representation
+    posts_data = [{'id': post.id, 'author': post.author, 'title': post.title, 'content': post.content} for post in posts]
+
+    return jsonify(posts_data), 200
 
 
 @app.route('/posts/<int:post_id>', methods=['GET'])
@@ -80,30 +140,6 @@ def get_post(post_id):
         return jsonify(post)
     else:
         return jsonify({'message': 'Post not found!'}), 404
-
-
-@app.route('/posts', methods=['POST'])
-def create_post():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    title = data.get('title')
-    content = data.get('content')
-
-    if not username or not password:
-        return jsonify({'message': 'Username and password are required!'}), 400
-
-    if username not in users or users[username]['password'] != password:
-        return jsonify({'message': 'Invalid username or password!'}), 401
-
-    if not title or not content:
-        return jsonify({'message': 'Title and content are required!'}), 400
-
-    post_id = len(posts) + 1
-    post = {'id': post_id, 'title': title, 'content': content, 'author': username}
-    posts[post_id] = post
-
-    return jsonify({'message': 'Post created successfully!', 'post': post}), 201
 
 
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
