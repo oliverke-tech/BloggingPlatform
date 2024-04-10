@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-import base64
 from app import model, db, app
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
