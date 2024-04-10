@@ -135,36 +135,69 @@ def get_posts():
 
 @app.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
-    post = posts.get(post_id)
+    # Query the post from the database
+    post = model.Post.query.get(post_id)
+
     if post:
-        return jsonify(post)
+        # Convert the post object to a dictionary representation
+        post_data = {
+            'id': post.id,
+            'title': post.title,
+            'content': post.content,
+            'author': post.author
+        }
+        return jsonify(post_data), 200
     else:
-        return jsonify({'message': 'Post not found!'}), 404
-
-
-@app.route('/posts/<int:post_id>', methods=['DELETE'])
-def delete_post(post_id):
-    if post_id not in posts:
-        return jsonify({'message': 'Post not found!'}), 404
-
-    del posts[post_id]
-    return jsonify({'message': 'Post deleted successfully!'})
+        return jsonify({'message': 'Post not found!'}), 400
 
 
 @app.route('/posts/<int:post_id>', methods=['PUT'])
-def update_post(post_id):
+@token_required
+def update_post(current_user, post_id):
     data = request.get_json()
     title = data.get('title')
     content = data.get('content')
 
-    if post_id not in posts:
-        return jsonify({'message': 'Post not found!'}), 404
+    # Query the post from the database
+    post = model.Post.query.get(post_id)
 
-    post = posts[post_id]
-    post['title'] = title if title else post['title']
-    post['content'] = content if content else post['content']
+    # Check if the post exists
+    if not post:
+        return jsonify({'message': 'Post not found!'}), 400
 
-    return jsonify({'message': 'Post updated successfully!', 'post': post})
+    # Check if the current user is the author of the post
+    if post.author != current_user:
+        return jsonify({'message': 'You are not authorized to update this post!'}), 400
+
+    # Update the post attributes
+    post.title = title
+    post.content = content
+
+    # Commit the changes to the database
+    db.session.commit()
+
+    return jsonify({'message': 'Post updated successfully!'}), 200
+
+
+@app.route('/posts/<int:post_id>', methods=['DELETE'])
+@token_required
+def delete_post(current_user, post_id):
+    # Query the post from the database
+    post = model.Post.query.get(post_id)
+
+    # Check if the post exists
+    if not post:
+        return jsonify({'message': 'Post not found!'}), 400
+
+    # Check if the current user is the author of the post
+    if post.author != current_user:
+        return jsonify({'message': 'You are not authorized to delete this post!'}), 400
+
+    # Delete the post from the database
+    db.session.delete(post)
+    db.session.commit()
+
+    return jsonify({'message': 'Post deleted successfully!'}), 200
 
 
 if __name__ == '__main__':
