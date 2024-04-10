@@ -9,7 +9,7 @@ class SignupTest(unittest.TestCase):
         app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['SQLALCHEMY_TRACK_MODIFICATION'] = False
-        app.config['SECRET_KEY'] = 'your_secret_key'
+        app.config['SECRET_KEY'] = 'my_secret_key'
         self.app = app.test_client()
         self.ctx = app.app_context()
         self.ctx.push()

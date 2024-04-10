@@ -1,7 +1,7 @@
 from app import app
 
 app.config['SQLALCHEMY_TRACK_MODIFICATION'] = False
-app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SECRET_KEY'] = 'my_secret_key'
 
 
 if __name__ == '__main__':
