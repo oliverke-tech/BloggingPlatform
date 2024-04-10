@@ -3,11 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 
 dia = 'mysql'
 dri = 'pymysql'
-username = 'admin'
+username = 'root'
 password = 'password'
 host = 'localhost'
 port = '3306'
-database = 'ece1779_a2'
+database = 'blog_1'
 
 # SQLALCHEMY_DATABASE_URI = "{}+{}://{}:{}@{}:{}/{}?charset=utf8".format(dia, dri, username, password, host, port, database)
 SQLALCHEMY_DATABASE_URI = "{}+{}://{}:{}@{}:{}/{}?charset=utf8".format(dia, dri, username, password, host, port, database)
@@ -15,4 +15,4 @@ SQLALCHEMY_DATABASE_URI = "{}+{}://{}:{}@{}:{}/{}?charset=utf8".format(dia, dri,
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 db = SQLAlchemy(app)
-from app import app
+from . import blogApp

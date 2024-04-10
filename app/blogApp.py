@@ -5,8 +5,8 @@ from app import model, db, app
 users = {}
 posts = {}
 
-
-db.create_all()
+with app.app_context():
+    db.create_all()
 
 @app.route("/")
 def main():
@@ -19,11 +19,14 @@ def generate_auth_token(username, password):
 def check_auth(username, password):
     return username in users and users[username]['password'] == password
 
-@app.route('/signup', methods=['POST'])
+# Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234","password":"5678"}'
+@app.route('/signup', methods=['POST','GET'])
 def signup():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+    print("123")
+    # data = request.get_json()
+    # print("312")
+    username = request.args.get('username')
+    password = request.args.get('password')
 
     if not username or not password:
         return jsonify({'message': 'Username and password are required!'}), 400
