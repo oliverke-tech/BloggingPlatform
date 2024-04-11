@@ -21,11 +21,11 @@ This Flask application provides an API for managing user authentication and crea
     database = 'blog_1'
     ```
 
-    Then, initialize the database by running the following commands:
+    Then, create a database by running the following command (update root with your username):
     ```
-    flask db init
-    flask db migrate
-    flask db upgrade
+    mysql -h localhost -u root -p
+    (input password)
+    CREATE DATABASE blog_1;
     ```
 
 ## Usage
@@ -71,3 +71,19 @@ This Flask application provides an API for managing user authentication and crea
         ```
         curl -X DELETE localhost:5050/posts/<post_id> -H 'Authorization: Bearer <your_token>'
         ```
+
+## Authentication
+
+Authentication is handled using JSON Web Tokens (JWT). Upon signing in, a JWT token is generated and provided in the response. This token must be included in the `Authorization` header of subsequent requests to authenticate the user.
+
+## Unit Testing
+
+Unit tests are implemented to ensure the functionality of the application. To run the unit tests, execute the following command:
+
+```
+python3 -m test.py
+```
+
+## Contributor
+
+- Zhengyu(Oliver) Ke
