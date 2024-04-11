@@ -47,8 +47,24 @@ def token_required(f):
 @app.route('/signup', methods=['POST'])
 def signup():
     """
-    Route for user signup
-    Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234", "password":"5678"}' -H 'Content-Type: application/json'
+    Register a new user.
+
+    This route allows users to register by providing a unique username and password.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Raises:
+        BadRequest: If the request body is missing or not in JSON format.
+        BadRequest: If the username or password is missing.
+        BadRequest: If the username already exists in the database.
+
+    Examples:
+        A sample successful response:
+        {
+            'message': 'User created successfully!',
+            'username': 'example_user'
+        }
     """
     data = request.get_json()
     if not data:
@@ -76,9 +92,29 @@ def signup():
     return jsonify({'message': 'User created successfully!', 'username': username}), HTTPStatus.OK
 
 
-# Route for user signin
 @app.route('/signin', methods=['POST'])
 def signin():
+    """
+    Log in a user.
+
+    This route allows users to authenticate by providing their username and password.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Raises:
+        BadRequest: If the request body is missing or not in JSON format.
+        BadRequest: If the username or password is missing.
+        BadRequest: If the provided username or password is incorrect.
+
+    Examples:
+        A sample successful response:
+        {
+            'message': 'Login successful!',
+            'username': 'example_user',
+            'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImV4YW1wbGVfdXNlciIsImlhdCI6MTYzMjg4OTM2MCwiZXhwIjoxNjMyODkwMjYwfQ.oh_SLCAlfQHGS8Pw1vm_cVMT23pYn6eIlMZIrYqQI-c'
+        }
+    """
     data = request.get_json()
     if not data:
         return jsonify({'message': 'Request body is missing or not in JSON format'}), HTTPStatus.BAD_REQUEST
@@ -101,10 +137,30 @@ def signin():
         return jsonify({'message': 'Invalid username or password!'}), HTTPStatus.BAD_REQUEST
 
 
-# Route for creating a new post
 @app.route('/posts', methods=['POST'])
 @token_required
 def create_post(current_user):
+    """
+    Create a new post.
+
+    This route allows authenticated users to create a new post by providing a title and content.
+
+    Args:
+        current_user (User): The currently authenticated user.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Raises:
+        BadRequest: If the request body is missing or not in JSON format.
+        BadRequest: If the title or content of the post is missing.
+
+    Examples:
+        A sample successful response:
+        {
+            'message': 'Post created successfully!'
+        }
+    """
     data = request.get_json()
     title = data.get('title')
     content = data.get('content')
@@ -122,9 +178,33 @@ def create_post(current_user):
     return jsonify({'message': 'Post created successfully!'}), HTTPStatus.OK
 
 
-# Route for retrieving all posts
 @app.route('/posts', methods=['GET'])
 def get_posts():
+    """
+    Retrieve all posts.
+
+    This route allows users to retrieve all posts available in the database.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Examples:
+        A sample successful response:
+        [
+            {
+                'id': 1,
+                'author': 'John Doe',
+                'title': 'First Post',
+                'content': 'This is the content of the first post.'
+            },
+            {
+                'id': 2,
+                'author': 'Jane Smith',
+                'title': 'Second Post',
+                'content': 'This is the content of the second post.'
+            }
+        ]
+    """
     # Query all posts from the database
     posts = model.Post.query.all()
 
@@ -134,9 +214,31 @@ def get_posts():
     return jsonify(posts_data), HTTPStatus.OK
 
 
-# Route for retrieving a specific post by ID
 @app.route('/posts/<int:post_id>', methods=['GET'])
 def get_post(post_id):
+    """
+    Retrieve a specific post by ID.
+
+    This route allows users to retrieve a specific post from the database by providing its ID.
+
+    Args:
+        post_id (int): The unique identifier of the post to retrieve.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Raises:
+        BadRequest: If the specified post ID is not found in the database.
+
+    Examples:
+        A sample successful response:
+        {
+            'id': 1,
+            'title': 'First Post',
+            'content': 'This is the content of the first post.',
+            'author': 'John Doe'
+        }
+    """
     # Query the post from the database
     post = model.Post.query.get(post_id)
 
@@ -153,10 +255,31 @@ def get_post(post_id):
         return jsonify({'message': 'Post not found!'}), HTTPStatus.BAD_REQUEST
 
 
-# Route for updating a post
 @app.route('/posts/<int:post_id>', methods=['PUT'])
 @token_required
 def update_post(current_user, post_id):
+    """
+    Update a post.
+
+    This route allows authenticated users to update their own posts by providing a new title and content.
+
+    Args:
+        current_user (User): The currently authenticated user.
+        post_id (int): The unique identifier of the post to update.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Raises:
+        BadRequest: If the specified post ID is not found in the database.
+        BadRequest: If the current user is not the author of the post.
+
+    Examples:
+        A sample successful response:
+        {
+            'message': 'Post updated successfully!'
+        }
+    """
     data = request.get_json()
     title = data.get('title')
     content = data.get('content')
@@ -182,10 +305,31 @@ def update_post(current_user, post_id):
     return jsonify({'message': 'Post updated successfully!'}), HTTPStatus.OK
 
 
-# Route for deleting a post
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
 @token_required
 def delete_post(current_user, post_id):
+    """
+    Delete a post.
+
+    This route allows authenticated users to delete their own posts.
+
+    Args:
+        current_user (User): The currently authenticated user.
+        post_id (int): The unique identifier of the post to delete.
+
+    Returns:
+        tuple: A tuple containing JSON response data and HTTP status code.
+
+    Raises:
+        BadRequest: If the specified post ID is not found in the database.
+        BadRequest: If the current user is not the author of the post.
+
+    Examples:
+        A sample successful response:
+        {
+            'message': 'Post deleted successfully!'
+        }
+    """
     # Query the post from the database
     post = model.Post.query.get(post_id)
 
