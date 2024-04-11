@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import datetime
 import jwt
+from http import HTTPStatus
 
 with app.app_context():
     db.create_all()
@@ -30,37 +31,39 @@ def token_required(f):
         token = token_parts[1]
 
         if not token:
-            return jsonify({'message': 'Token is missing!'}), 400
+            return jsonify({'message': 'Token is missing!'}), HTTPStatus.BAD_REQUEST
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             current_user = data['username']
         except:
-            return jsonify({'message': 'Token is invalid!'}), 400
+            return jsonify({'message': 'Token is invalid!'}), HTTPStatus.BAD_REQUEST
 
         return f(current_user, *args, **kwargs)
 
     return decorated
 
 
-# Route for user signup
-# Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234", "password":"5678"}' -H 'Content-Type: application/json'
 @app.route('/signup', methods=['POST'])
 def signup():
+    """
+    Route for user signup
+    Test Curl: curl localhost:5050/signup -X POST -d '{"username":"1234", "password":"5678"}' -H 'Content-Type: application/json'
+    """
     data = request.get_json()
     if not data:
-        return jsonify({'message': 'Request body is missing or not in JSON format'}), 400
+        return jsonify({'message': 'Request body is missing or not in JSON format'}), HTTPStatus.BAD_REQUEST
 
     username = data.get('username')
     password = data.get('password')
 
     if not username or not password:
-        return jsonify({'message': 'Username and password are required!'}), 400
+        return jsonify({'message': 'Username and password are required!'}), HTTPStatus.BAD_REQUEST
 
     # Check if the username already exists in the database
     existing_user = model.User.query.filter_by(username=username).first()
     if existing_user:
-        return jsonify({'message': 'Username already exists!'}), 400
+        return jsonify({'message': 'Username already exists!'}), HTTPStatus.BAD_REQUEST
 
     # Hash the password before storing it in the database
     hashed_password = generate_password_hash(password)
@@ -70,7 +73,7 @@ def signup():
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({'message': 'User created successfully!', 'username': username}), 200
+    return jsonify({'message': 'User created successfully!', 'username': username}), HTTPStatus.OK
 
 
 # Route for user signin
@@ -78,13 +81,13 @@ def signup():
 def signin():
     data = request.get_json()
     if not data:
-        return jsonify({'message': 'Request body is missing or not in JSON format'}), 400
+        return jsonify({'message': 'Request body is missing or not in JSON format'}), HTTPStatus.BAD_REQUEST
 
     username = data.get('username')
     password = data.get('password')
 
     if not username or not password:
-        return jsonify({'message': 'Username and password are required!'}), 400
+        return jsonify({'message': 'Username and password are required!'}), HTTPStatus.BAD_REQUEST
 
     # Retrieve the user from the database
     user = model.User.query.filter_by(username=username).first()
@@ -93,9 +96,9 @@ def signin():
     if user and check_password_hash(user.password, password):
         # Generate token for authentication
         token = generate_token(username)
-        return jsonify({'message': 'Login successful!', 'username': username, 'token': token}), 200
+        return jsonify({'message': 'Login successful!', 'username': username, 'token': token}), HTTPStatus.OK
     else:
-        return jsonify({'message': 'Invalid username or password!'}), 400
+        return jsonify({'message': 'Invalid username or password!'}), HTTPStatus.BAD_REQUEST
 
 
 # Route for creating a new post
@@ -107,7 +110,7 @@ def create_post(current_user):
     content = data.get('content')
 
     if not title or not content:
-        return jsonify({'message': 'Title and content are required!'}), 400
+        return jsonify({'message': 'Title and content are required!'}), HTTPStatus.BAD_REQUEST
 
     # Create a new post instance
     new_post = model.Post(title=title, content=content, author=current_user)
@@ -116,7 +119,7 @@ def create_post(current_user):
     db.session.add(new_post)
     db.session.commit()
 
-    return jsonify({'message': 'Post created successfully!'}), 200
+    return jsonify({'message': 'Post created successfully!'}), HTTPStatus.OK
 
 
 # Route for retrieving all posts
@@ -128,7 +131,7 @@ def get_posts():
     # Convert SQLAlchemy objects to dictionary representation
     posts_data = [{'id': post.id, 'author': post.author, 'title': post.title, 'content': post.content} for post in posts]
 
-    return jsonify(posts_data), 200
+    return jsonify(posts_data), HTTPStatus.OK
 
 
 # Route for retrieving a specific post by ID
@@ -145,9 +148,9 @@ def get_post(post_id):
             'content': post.content,
             'author': post.author
         }
-        return jsonify(post_data), 200
+        return jsonify(post_data), HTTPStatus.OK
     else:
-        return jsonify({'message': 'Post not found!'}), 400
+        return jsonify({'message': 'Post not found!'}), HTTPStatus.BAD_REQUEST
 
 
 # Route for updating a post
@@ -163,11 +166,11 @@ def update_post(current_user, post_id):
 
     # Check if the post exists
     if not post:
-        return jsonify({'message': 'Post not found!'}), 400
+        return jsonify({'message': 'Post not found!'}), HTTPStatus.BAD_REQUEST
 
     # Check if the current user is the author of the post
     if post.author != current_user:
-        return jsonify({'message': 'You are not authorized to update this post!'}), 400
+        return jsonify({'message': 'You are not authorized to update this post!'}), HTTPStatus.BAD_REQUEST
 
     # Update the post attributes
     post.title = title
@@ -176,7 +179,7 @@ def update_post(current_user, post_id):
     # Commit the changes to the database
     db.session.commit()
 
-    return jsonify({'message': 'Post updated successfully!'}), 200
+    return jsonify({'message': 'Post updated successfully!'}), HTTPStatus.OK
 
 
 # Route for deleting a post
@@ -188,17 +191,17 @@ def delete_post(current_user, post_id):
 
     # Check if the post exists
     if not post:
-        return jsonify({'message': 'Post not found!'}), 400
+        return jsonify({'message': 'Post not found!'}), HTTPStatus.BAD_REQUEST
 
     # Check if the current user is the author of the post
     if post.author != current_user:
-        return jsonify({'message': 'You are not authorized to delete this post!'}), 400
+        return jsonify({'message': 'You are not authorized to delete this post!'}), HTTPStatus.BAD_REQUEST
 
     # Delete the post from the database
     db.session.delete(post)
     db.session.commit()
 
-    return jsonify({'message': 'Post deleted successfully!'}), 200
+    return jsonify({'message': 'Post deleted successfully!'}), HTTPStatus.OK
 
 
 if __name__ == '__main__':
